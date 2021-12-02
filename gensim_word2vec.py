@@ -3,8 +3,8 @@ import pandas as pd
 import numpy as np
 import dataset
 
-def train_word2vec(words, model_name='word2vec'):
-    model = Word2Vec(words, min_count=1, vector_size=50, workers=3, window=3, sg= 1)
+def train_word2vec(doc_words, model_name='word2vec'):
+    model = Word2Vec(doc_words, min_count=1, vector_size=50, workers=3, window=3, sg= 1)
     model.save(model_name + '.model')
     return model
 
@@ -23,17 +23,15 @@ def get_C_mat(doc1_words, doc2_words, model):
 
 def main():
     df = dataset.load_data()
-    words = [dataset.get_words(doc) for doc in df['description']]
-
-    #Test read OSHA dataset
-    #osha_model = train_word2vec(words, 'osha')
-    osha_model = load_word2vec('osha')
+    doc_words = dataset.get_words(df)
+    osha_model = train_word2vec(doc_words, 'osha')
+    #osha_model = load_word2vec('osha')
 
     #Test the word vector model
     print(osha_model.wv.most_similar('fire')) #Returns things like "flames", "explosion", "extinguisher", etc
 
     #Test word similarity matrix, C
-    C = get_C_mat(words[0], words[1], osha_model)
+    C = get_C_mat(doc_words[0], doc_words[1], osha_model)
     print(C)
 
 if __name__ == "__main__":
