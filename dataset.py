@@ -9,6 +9,10 @@ def get_words(df):
     for doc in df['description']:
         words = re.findall(r"\S+(?=\s)", doc) #Split based on spaces, do not include spaces in the match
         #Insert other transforms here
+        #Make all lower case
+        #Remove numbers
+        #Remove punctuation
+        #Remove common small words (maybe)
         doc_words.append(words)
     return doc_words
 
