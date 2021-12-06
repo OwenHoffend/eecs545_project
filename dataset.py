@@ -1,5 +1,7 @@
 import pandas as pd
+import numpy as np
 import re
+import itertools
 
 def get_words(df):
     #Filter out unwanted words (empty space, numeric characters, etc) here
@@ -9,6 +11,10 @@ def get_words(df):
         #Insert other transforms here
         doc_words.append(words)
     return doc_words
+
+def get_library(df):
+    doc_words = get_words(df)
+    return np.unique(np.array(list(itertools.chain(*doc_words))))
 
 def load_data():
     df = pd.read_csv('osha.csv')

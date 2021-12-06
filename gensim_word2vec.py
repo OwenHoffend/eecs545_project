@@ -3,8 +3,10 @@ import pandas as pd
 import numpy as np
 import dataset
 
+VECTOR_SIZE = 50
+
 def train_word2vec(doc_words, model_name='word2vec'):
-    model = Word2Vec(doc_words, min_count=1, vector_size=50, workers=3, window=3, sg= 1)
+    model = Word2Vec(doc_words, min_count=1, vector_size=VECTOR_SIZE, workers=3, window=3, sg= 1)
     model.save(model_name + '.model')
     return model
 
@@ -20,6 +22,14 @@ def get_C_mat(doc1_words, doc2_words, model):
         for j, w2 in enumerate(doc2_words):
             C[i, j] = model.wv.similarity(w1, w2)
     return C
+
+def get_X_mat(model, word_library):
+    d = VECTOR_SIZE
+    n = len(word_library)
+    X = np.zeros((n, d))
+    for i in range(n):
+        X[i] = model.wv[word_library[i]]
+    return X.T #X is d x n
 
 def main():
     df = dataset.load_data()

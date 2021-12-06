@@ -12,6 +12,13 @@ def nBOW(doc, word_library):
     total_words = np.sum(doc_counts)
     return np.array(list(word_dict.values())) / total_words
 
+def WCD(doc1, doc2, word_library, w2v_model):
+    nBOW1 = nBOW(doc1, word_library)
+    nBOW2 = nBOW(doc2, word_library)
+    X = w2v.get_X_mat(w2v_model, word_library)
+
+    return np.linalg.norm(X @ nBOW1 - X @ nBOW2)
+
 def WMD(doc1, doc2, word_library, w2v_model):
     nBOW1 = nBOW(doc1, word_library)
     nBOW2 = nBOW(doc2, word_library)
@@ -34,11 +41,13 @@ def main():
     doc_words = dataset.get_words(df)
 
     #Get the library of words that are present in all documents
-    word_library = np.unique(np.array(list(itertools.chain(*doc_words))))
+    word_library = dataset.get_library(df)
     osha_model = w2v.load_word2vec('osha') #<-- can also do train_word2vec here
 
     #Test WMD
     WMD(doc_words[0], doc_words[1], word_library, osha_model)
+
+    print(WCD(doc_words[0], doc_words[1], word_library, osha_model))
 
 if __name__ == "__main__":
     main()
