@@ -42,6 +42,7 @@ def main():
     df = dataset.load_data()
     doc_words = dataset.get_words(df)
     doc_library = dataset.get_library(df)
+    print(len(doc_library))
     #osha_model = train_word2vec(doc_words, 'osha')
     osha_model = load_word2vec('osha')
 

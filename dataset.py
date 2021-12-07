@@ -1,18 +1,22 @@
 import pandas as pd
 import numpy as np
-import re
+import regex
 import itertools
 
 def get_words(df):
     #Filter out unwanted words (empty space, numeric characters, etc) here
     doc_words = []
     for doc in df['description']:
-        words = re.findall(r"\S+(?=\s)", doc) #Split based on spaces, do not include spaces in the match
-        #Insert other transforms here
-        #Make all lower case
+        # words = re.findall(r"\S+(?=\s)", doc) #Split based on spaces, do not include spaces in the match
+        
         #Remove numbers
         #Remove punctuation
         #Remove common small words (maybe)
+        # words = re.findall(r"[A-Za-z]{2,}", doc) # Find all >=2 letter words, no punctuation or numbers
+        words = regex.findall(r"(?<=^| )(?!(?<!^|\. *)[A-Z][A-Za-z]+)[A-Za-z]{2,}", doc) # No mid-sentence proper nouns 
+
+        #Make all lower case
+        words = [word.lower() for word in words]
         doc_words.append(words)
     return doc_words
 
