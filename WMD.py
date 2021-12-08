@@ -1,36 +1,38 @@
-import dataset
+import dataset as ds
 import gensim_word2vec as w2v
 import numpy as np
+import itertools
 from collections import OrderedDict
+from multiprocessing import Pool
 
-def nBOW(doc, word_library):
+USE_MULTICORE = True
+NUM_PROCS = 12
+
+#Globals (need to be global for pooling to work)
+osha_model = w2v.load_word2vec('osha_new_and_old')
+words_main = ds.load_words(ds.MAIN_DATA)
+WORD_LIBRARY = ds.get_library(words_main)
+C = w2v.get_C_mat(osha_model, WORD_LIBRARY)
+X = w2v.get_X_mat(osha_model, WORD_LIBRARY)
+
+def nBOW(doc):
     doc_unique, doc_counts = np.unique(doc, return_counts=True)
-    word_dict = OrderedDict.fromkeys(word_library, 0)
+    word_dict = OrderedDict.fromkeys(WORD_LIBRARY, 0)
     for i, word in enumerate(doc_unique):
         word_dict[word] += doc_counts[i]
     total_words = np.sum(doc_counts)
     return np.array(list(word_dict.values())) / total_words
 
-def WCD(doc1, doc2, word_library, w2v_model, X):
-    nBOW1 = nBOW(doc1, word_library)
-    nBOW2 = nBOW(doc2, word_library)
-    
+def WCD(nBOW1, nBOW2):
     return np.linalg.norm(X @ nBOW1 - X @ nBOW2)
 
-def WMD(doc1, doc2, word_library, w2v_model, C):
-    nBOW1 = nBOW(doc1, word_library)
-    nBOW2 = nBOW(doc2, word_library)
-    # C = w2v.get_C_mat(w2v_model, word_library)
+def WMD(nBOW1, nBOW2):
 
     #TODO: SOLVE WMD HERE!
     return None
 
-def relaxed_WMD(doc1, doc2, word_library, w2v_model, C):
-    nBOW1 = nBOW(doc1, word_library)
-    nBOW2 = nBOW(doc2, word_library)
-    # C = w2v.get_C_mat(w2v_model, word_library)
-    n = len(word_library)
-
+def relaxed_WMD(nBOW1, nBOW2):
+    n = len(WORD_LIBRARY)
     cmin_j = np.argmin(C, axis=1)
     cmin_i = np.argmin(C, axis=0)
 
@@ -42,34 +44,31 @@ def relaxed_WMD(doc1, doc2, word_library, w2v_model, C):
             dist += np.maximum(L1, L2) * C[i, j]
     return dist
 
-def WMD_matrix(doc_words, word_library, w2v_model, wmd_func=WMD, input_mat=None, save_file="wmat.npy"):
+def WMD_matrix(doc_words, wmd_func=WMD, save_file="wmat.npy"):
     n = len(doc_words)
     W = np.zeros((n, n))
-    for i, d1 in enumerate(doc_words):
+
+    nBOWs = [nBOW(d) for d in doc_words]
+    for i in range(n):
         print("i:", i)
-        for j, d2 in enumerate(doc_words):
-            print("j:", j)
-            W[i, j] = wmd_func(d1, d2, word_library, w2v_model, input_mat)
+        if USE_MULTICORE:
+            with Pool(NUM_PROCS) as p:
+                row = p.starmap(wmd_func, zip(nBOWs, itertools.repeat(nBOWs[i])))
+            W[i, :] = row
+        else:
+            for j in range(n):
+                W[i, j] = wmd_func(nBOWs[i], nBOWs[j])
 
     with open(save_file, 'wb') as f:
         np.save(f, W)
-    return W #<-- Perform clustering using this
+    return W
 
 def main():
-    df = dataset.load_data()
-    doc_words = dataset.get_words(df)
+    #RUN WCD MAT
+    #print(WMD_matrix(words_main, wmd_func=WCD, save_file="WCD_wmat.npy"))
 
-    #Get the library of words that are present in all documents
-    word_library = dataset.get_library(df)
-    osha_model = w2v.load_word2vec('osha') #<-- can also do train_word2vec here
-
-    #Test WMD
-    #WMD(doc_words[0], doc_words[1], word_library, osha_model)
-
-    #print(WCD(doc_words[0], doc_words[1], word_library, osha_model))
-    # print(relaxed_WMD(doc_words[0], doc_words[1], word_library, osha_model))
-    X = w2v.get_X_mat(osha_model, word_library)
-    print(WMD_matrix(doc_words, word_library, osha_model, wmd_func=WCD, input_mat=X))
+    #RUN RELAXED WMD
+    print(WMD_matrix(words_main, wmd_func=relaxed_WMD, save_file="RWMD_wmat.npy"))
 
 if __name__ == "__main__":
     main()

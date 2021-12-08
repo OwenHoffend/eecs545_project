@@ -3,7 +3,15 @@ import numpy as np
 import regex
 import itertools
 
-def get_words(df):
+W2V_DATA = {'csvfile' : 'osha.csv', 'columns' : ['id', 'summary', 'description', 'keywords', 'other']}
+MAIN_DATA = {'csvfile' : 'osha_new.csv', 'columns' : ['summary', 'description', 'label']}
+
+def get_library(doc_words):
+    return np.unique(np.array(list(itertools.chain(*doc_words))))
+
+def load_words(dfile_dict):
+    df = pd.read_csv(dfile_dict['csvfile'])
+    df.columns = dfile_dict['columns']
     #Filter out unwanted words (empty space, numeric characters, etc) here
     doc_words = []
     for doc in df['description']:
@@ -20,20 +28,9 @@ def get_words(df):
         doc_words.append(words)
     return doc_words
 
-def get_library(df):
-    doc_words = get_words(df)
-    return np.unique(np.array(list(itertools.chain(*doc_words))))
-
-def load_data():
-    df = pd.read_csv('osha.csv')
-    df.columns = ['id', 'summary', 'description', 'keywords', 'other']
-    #Data preprocessing goes here
-    return df
-
-
 def main():
     #Test read OSHA dataset
-    df = load_data()
+    df = load_words(W2V_DATA)
 
 if __name__ == "__main__":
     main()
