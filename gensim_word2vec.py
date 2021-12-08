@@ -30,12 +30,20 @@ def get_C_mat(model, word_library, save_file='cmat.npy'):
             C = np.load(f)
     return C
 
-def get_X_mat(model, word_library):
+def get_X_mat(model, word_library, save_file='xmat.npy'):
     d = VECTOR_SIZE
     n = len(word_library)
-    X = np.zeros((n, d))
-    for i in range(n):
-        X[i] = model.wv[word_library[i]]
+
+    if not os.path.exists(save_file):
+        X = np.zeros((n, d))
+        for i in range(n):
+            X[i] = model.wv[word_library[i]]
+        with open(save_file, 'wb') as f:
+            np.save(f, X)
+    else:
+        with open(save_file, 'rb') as f:
+            X = np.load(f)
+
     return X.T #X is d x n
 
 def main():
