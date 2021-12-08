@@ -8,12 +8,21 @@ from multiprocessing import Pool
 USE_MULTICORE = True
 NUM_PROCS = 12
 
-#Globals (need to be global for pooling to work)
-osha_model = w2v.load_word2vec('osha_new_and_old')
-words_main = ds.load_words(ds.MAIN_DATA)
-WORD_LIBRARY = ds.get_library(words_main)
-C = w2v.get_C_mat(osha_model, WORD_LIBRARY)
-X = w2v.get_X_mat(osha_model, WORD_LIBRARY)
+def worker_initializer():
+    #Globals (need to be global for pooling to work)
+    global WORDS_MAIN
+    global WORD_LIBRARY
+    global C
+    global X
+
+    osha_model = w2v.load_word2vec('osha_new_and_old')
+    WORDS_MAIN = ds.load_words(ds.MAIN_DATA)
+    WORD_LIBRARY = ds.get_library(WORDS_MAIN)
+    C = w2v.get_C_mat(osha_model, WORD_LIBRARY)
+    X = w2v.get_X_mat(osha_model, WORD_LIBRARY)
+
+if __name__ == "__main__":
+    worker_initializer()
 
 def nBOW(doc):
     doc_unique, doc_counts = np.unique(doc, return_counts=True)
@@ -52,7 +61,7 @@ def WMD_matrix(doc_words, wmd_func=WMD, save_file="wmat.npy"):
     for i in range(n):
         print("i:", i)
         if USE_MULTICORE:
-            with Pool(NUM_PROCS) as p:
+            with Pool(NUM_PROCS, worker_initializer, ()) as p:
                 row = p.starmap(wmd_func, zip(nBOWs, itertools.repeat(nBOWs[i])))
             W[i, :] = row
         else:
@@ -65,10 +74,10 @@ def WMD_matrix(doc_words, wmd_func=WMD, save_file="wmat.npy"):
 
 def main():
     #RUN WCD MAT
-    #print(WMD_matrix(words_main, wmd_func=WCD, save_file="WCD_wmat.npy"))
+    #print(WMD_matrix(WORDS_MAIN, wmd_func=WCD, save_file="WCD_wmat.npy"))
 
     #RUN RELAXED WMD
-    print(WMD_matrix(words_main, wmd_func=relaxed_WMD, save_file="RWMD_wmat.npy"))
+    print(WMD_matrix(WORDS_MAIN, wmd_func=relaxed_WMD, save_file="RWMD_wmat.npy"))
 
 if __name__ == "__main__":
     main()
