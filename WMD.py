@@ -1,24 +1,42 @@
 import dataset as ds
 import gensim_word2vec as w2v
 import numpy as np
-import itertools
 from collections import OrderedDict
-from multiprocessing import Pool
 
-USE_MULTICORE = True
+#User parameters (change these)
+USE_MULTICORE = False
 NUM_PROCS = 12
+USE_GPU = False
+
+#Global configuration (don't change these)
+USE_MULTICORE = USE_MULTICORE and not USE_GPU #Don't try to use both
+if USE_MULTICORE:
+    from multiprocessing import Pool
+    import itertools
+if USE_GPU:
+    import torch
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 def worker_initializer():
     #Globals (need to be global for pooling to work)
     global WORDS_MAIN
     global WORD_LIBRARY
     global C
+    global CMIN_J
+    global CMIN_I
     global X
 
     osha_model = w2v.load_word2vec('osha_new_and_old')
     WORDS_MAIN = ds.load_words(ds.MAIN_DATA)
     WORD_LIBRARY = ds.get_library(WORDS_MAIN)
     C = w2v.get_C_mat(osha_model, WORD_LIBRARY)
+    if USE_GPU:
+        CMIN_J = torch.from_numpy(np.argmin(C, axis=1)).to(device)
+        CMIN_I = torch.from_numpy(np.argmin(C, axis=0)).to(device)
+        C = torch.from_numpy(C).float().to(device)
+    else:
+        CMIN_J = np.argmin(C, axis=1)
+        CMIN_I = np.argmin(C, axis=0)
     X = w2v.get_X_mat(osha_model, WORD_LIBRARY)
 
 if __name__ == "__main__":
@@ -42,31 +60,37 @@ def WMD(nBOW1, nBOW2):
 
 def relaxed_WMD(nBOW1, nBOW2):
     n = len(WORD_LIBRARY)
-    cmin_j = np.argmin(C, axis=1)
-    cmin_i = np.argmin(C, axis=0)
-
-    dist = 0.0
-    for i in range(n):
-        for j in range(n):
-            L1 = nBOW1[i] if j == cmin_j[i] else 0.0
-            L2 = nBOW2[j] if i == cmin_i[j] else 0.0
-            dist += np.maximum(L1, L2) * C[i, j]
-    return dist
+    if USE_GPU:
+        T1_cuda = torch.cuda.FloatTensor(n, n).fill_(0)
+        T2_cuda = torch.cuda.FloatTensor(n, n).fill_(0)
+        T1_cuda[:, CMIN_J] = nBOW1
+        T2_cuda[CMIN_I, :] = nBOW2
+        return torch.sum(torch.maximum(T1_cuda, T2_cuda) * C).cpu().detach().numpy()
+    else:
+        T1 = np.zeros((n, n))
+        T2 = np.zeros((n, n))
+        T1[:, CMIN_J] = nBOW1
+        T2[CMIN_I, :] = nBOW2
+        return np.sum(np.maximum(T1, T2) * C)
 
 def WMD_matrix(doc_words, wmd_func=WMD, save_file="wmat.npy"):
     n = len(doc_words)
     W = np.zeros((n, n))
 
-    nBOWs = [nBOW(d) for d in doc_words]
+    nBOWs = np.array([nBOW(d) for d in doc_words])
+    if USE_GPU:
+        nBOWs = torch.from_numpy(nBOWs).float().to(device)
     for i in range(n):
         print("i:", i)
         if USE_MULTICORE:
             with Pool(NUM_PROCS, worker_initializer, ()) as p:
-                row = p.starmap(wmd_func, zip(nBOWs, itertools.repeat(nBOWs[i])))
+                row = p.starmap(wmd_func, zip(itertools.repeat(nBOWs[i]), nBOWs))
             W[i, :] = row
         else:
             for j in range(n):
+                print("j:", j)
                 W[i, j] = wmd_func(nBOWs[i], nBOWs[j])
+        print('hi')
 
     with open(save_file, 'wb') as f:
         np.save(f, W)
