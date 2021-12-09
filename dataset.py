@@ -28,6 +28,25 @@ def load_words(dfile_dict):
         doc_words.append(words)
     return doc_words
 
+def load_labels(dfile_dict=MAIN_DATA):
+    df = pd.read_csv(dfile_dict['csvfile'])
+    df.columns = dfile_dict['columns']
+
+    labels = []
+    labels_dict = {}
+
+    i = 0
+    for label in df['label']:
+        if label not in labels_dict.keys():
+            labels_dict[label] = i
+            i += 1
+
+        labels.append(labels_dict[label])
+
+    # Create label_id to label_name dict
+    id_to_label = {v: k for k, v in labels_dict.items()}
+    return (labels, id_to_label)
+
 def main():
     #Test read OSHA dataset
     df = load_words(W2V_DATA)
