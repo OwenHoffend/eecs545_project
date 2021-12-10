@@ -68,8 +68,6 @@ def main():
     with open(file, 'rb') as f:
         W = np.load(f)
 
-    W = np.zeros((800, 199)) # DELETE
-
     num_train, num_test = W.shape
 
     labels, id_to_label = ds.load_labels()
