@@ -1,21 +1,11 @@
 import numpy as np
 import dataset as ds
 
-def knn(k=5, train_split=0.8, file="WCD_wmat.npy"):
-    num_train = int(train_split * 1000)
-
-    with open(file, 'rb') as f:
-        W = np.load(f)
-
-    doc_ids = np.arange(num_train, W.shape[0])
+def knn(W_mat, num_test, labels_train, k=5):
     predictions = []
 
-    labels, id_to_label = ds.load_labels()
-    labels_train = np.array(labels[:num_train])
-    labels_test = np.array(labels[num_train:])
-
-    for w_i in doc_ids:
-        training_dists = W[w_i, :num_train]
+    for i in range(num_test):
+        training_dists = W_mat[:, i]
 
         # Finding the k nearest neighbors
         knn_idx = np.argpartition(training_dists, k)[:k]
@@ -29,20 +19,76 @@ def knn(k=5, train_split=0.8, file="WCD_wmat.npy"):
 
         predictions.append(max(neighbors, key=neighbors.get))
 
+    return predictions
+
+def calc_accuracy(predictions, labels_test):
+    num_test = len(labels_test)
+
     accuracy = 0
     for i, pred in enumerate(predictions):
         if pred == labels_test[i]:
             accuracy += 1
-    accuracy /= W.shape[0] - num_train
-    print(accuracy)
+    accuracy /= num_test
+    return accuracy
 
-    return [id_to_label[pred] for pred in predictions]
+def calc_precision(predictions, labels_test, num_classes):
+    tp = 0
+    fp = 0
+    for label in range(num_classes):
+        for i, pred in enumerate(predictions):
+            if pred == label:
+                if labels_test[i] == label:
+                    tp += 1
+                else:
+                    fp += 1
 
+    precision = tp / (tp + fp)
+    return precision
+
+def calc_recall(predictions, labels_test, num_classes):
+    tp = 0
+    fn = 0
+    for label in range(num_classes):
+        for i, pred in enumerate(predictions):
+            if labels_test[i] == label:
+                if pred == label:
+                    tp += 1
+                else:
+                    fn += 1
+
+    recall = tp / (tp + fn)
+    return recall
+
+def calc_f1(precision, recall):
+    return 2 * (precision * recall)  (precision + recall)
 
 def main():
-    predictions = knn()
+    file = "WCD_wmat.npy"
 
-    print(predictions)
+    with open(file, 'rb') as f:
+        W = np.load(f)
+
+    num_train, num_test = W.shape
+
+    labels, id_to_label = ds.load_labels()
+    labels_train = np.array(labels[:num_train])
+    labels_test = np.array(labels[num_train:])
+    
+    num_classes = len(id_to_label.keys())
+
+
+    predictions = knn(W, num_test, labels_train)
+    accuracy = calc_accuracy(predictions, labels_test)
+    print(accuracy)
+    precision = calc_precision(predictions, labels_test, num_classes)
+    print(precision)
+    recall = calc_recall(predictions, labels_test, num_classes)
+    print(recall)
+    f1_score = calc_f1(precision, recall)
+    print(f1_score)
+
+    prediction_strings = [id_to_label[pred] for pred in predictions]
+
 
 if __name__ == "__main__":
     main()
