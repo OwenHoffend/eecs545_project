@@ -19,6 +19,7 @@ if USE_GPU:
 
 def worker_initializer():
     #Globals (need to be global for pooling to work)
+    global OSHA_MODEL
     global WORDS_MAIN
     global WORD_LIBRARY
     global C
@@ -26,11 +27,11 @@ def worker_initializer():
     global WL_SZ
     global LARGER_THAN_ALL_C
 
-    osha_model = w2v.load_word2vec('osha_new_and_old')
+    OSHA_MODEL = w2v.load_word2vec('osha_new_and_old')
     WORDS_MAIN = ds.load_words(ds.MAIN_DATA)
     WORD_LIBRARY = ds.get_library(WORDS_MAIN)
-    C = w2v.get_C_mat(osha_model, WORD_LIBRARY)
-    X = w2v.get_X_mat(osha_model, WORD_LIBRARY)
+    C = w2v.get_C_mat(OSHA_MODEL, WORD_LIBRARY, save_file="cmat_old.npy")
+    X = w2v.get_X_mat(OSHA_MODEL, WORD_LIBRARY, save_file="xmat_old.npy")
     WL_SZ = len(WORD_LIBRARY)
     if USE_GPU:
         C = torch.from_numpy(C).float().to(device)
@@ -128,14 +129,30 @@ def WMD_matrix(train_docs, test_docs, wmd_func=WCD, save_file="wmat.npy"):
         np.save(f, W)
     return W
 
-def main():
-    #RUN WCD MAT
-    #print(WMD_matrix(WORDS_MAIN, wmd_func=WCD, save_file="WCD_wmat.npy"))
+def gensim_WMD_matrix(train_docs, test_docs, save_file="WMD_wmat.npy"):
+    ntrain = len(train_docs)
+    ntest = len(test_docs)
+    W = np.zeros((ntrain, ntest))
+    for i in range(ntrain):
+        print("i:", i)
+        for j in range(ntest):
+            W[i, j] = OSHA_MODEL.wv.wmdistance(train_docs[i], test_docs[j])
+    with open(save_file, 'wb') as f:
+        np.save(f, W)
+    return W
 
-    #RUN RELAXED WMD
+def main():
     train_split = 0.8
     num_train = int(train_split * 1000)
-    print(WMD_matrix(WORDS_MAIN[:num_train], WORDS_MAIN[num_train:], wmd_func=relaxed_WMD, save_file="RWMD_wmat.npy"))
+
+    #RUN WCD MAT
+    #print(WMD_matrix(WORDS_MAIN[:num_train], WORDS_MAIN[num_train:], wmd_func=WCD, save_file="WCD_wmat.npy"))
+
+    #RUN RELAXED WMD
+    print(WMD_matrix(WORDS_MAIN[:num_train], WORDS_MAIN[num_train:], wmd_func=relaxed_WMD, save_file="RWMD_wmat_old.npy"))
+
+    #RUN GENSIM WMD
+    #gensim_WMD_matrix(WORDS_MAIN[:num_train], WORDS_MAIN[num_train:])
 
 if __name__ == "__main__":
     main()

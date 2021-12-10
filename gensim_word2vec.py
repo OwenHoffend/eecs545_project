@@ -1,17 +1,20 @@
 from gensim.models import Word2Vec
 import gensim.downloader as api
 import os
-import pandas as pd
 import numpy as np
 import dataset as ds
 
 VECTOR_SIZE = 50
 
 def train_word2vec(doc_words, model_name='word2vec'):
-    extra_words = api.load("20-newsgroups")
-    model = Word2Vec(extra_words, min_count=1, vector_size=VECTOR_SIZE, workers=3, window=3, sg=1)
-    model.build_vocab(doc_words, update=True)
-    model.train(doc_words, total_examples=len(doc_words), epochs=1)
+    #Old W2V
+    model = Word2Vec(doc_words, min_count=1, vector_size=VECTOR_SIZE, workers=3, window=3, sg= 1)
+    #New W2V
+    #extra_words = api.load("20-newsgroups")
+    #model = Word2Vec(extra_words, min_count=1, vector_size=VECTOR_SIZE, workers=3, window=3, sg=1)
+    #model.build_vocab(doc_words, update=True)
+
+    #model.train(doc_words, total_examples=len(doc_words), epochs=1)
     model.save(model_name + '.model')
     return model
 
@@ -23,7 +26,7 @@ def get_C_mat(model, word_library, save_file='cmat.npy'):
     #Get the c(i, j) matrix for a pair of documents, in order to perform WMD
     n = len(word_library)
     if not os.path.exists(save_file):
-        print("Generating C mat")
+        print("Generating C mat. Saving to: ", save_file)
         C = np.zeros((n, n)) #May need to enforce m == n
         for i, w1 in enumerate(word_library):
             print("i:", i)
@@ -32,7 +35,7 @@ def get_C_mat(model, word_library, save_file='cmat.npy'):
         with open(save_file, 'wb') as f:
             np.save(f, C)
     else:
-        print("Loading old C mat")
+        print("Loading old C mat: ", save_file)
         with open(save_file, 'rb') as f:
             C = np.load(f)
     return C
@@ -42,14 +45,14 @@ def get_X_mat(model, word_library, save_file='xmat.npy'):
     n = len(word_library)
 
     if not os.path.exists(save_file):
-        print("Generating X mat")
+        print("Generating X mat. Saving to: ", save_file)
         X = np.zeros((n, d))
         for i in range(n):
             X[i] = model.wv[word_library[i]]
         with open(save_file, 'wb') as f:
             np.save(f, X)
     else:
-        print("Loading old X mat")
+        print("Loading old X mat: ", save_file)
         with open(save_file, 'rb') as f:
             X = np.load(f)
 
