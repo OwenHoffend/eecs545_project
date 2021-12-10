@@ -1,4 +1,5 @@
 from gensim.models import Word2Vec
+import gensim.downloader as api
 import os
 import pandas as pd
 import numpy as np
@@ -7,7 +8,10 @@ import dataset as ds
 VECTOR_SIZE = 50
 
 def train_word2vec(doc_words, model_name='word2vec'):
-    model = Word2Vec(doc_words, min_count=1, vector_size=VECTOR_SIZE, workers=3, window=3, sg= 1)
+    extra_words = api.load("20-newsgroups")
+    model = Word2Vec(extra_words, min_count=1, vector_size=VECTOR_SIZE, workers=3, window=3, sg=1)
+    model.build_vocab(doc_words, update=True)
+    model.train(doc_words, total_examples=len(doc_words), epochs=1)
     model.save(model_name + '.model')
     return model
 
@@ -24,7 +28,7 @@ def get_C_mat(model, word_library, save_file='cmat.npy'):
         for i, w1 in enumerate(word_library):
             print("i:", i)
             for j, w2 in enumerate(word_library):
-                C[i, j] = model.wv.similarity(w1, w2)
+                C[i, j] = np.linalg.norm(model.wv[w1] - model.wv[w2])
         with open(save_file, 'wb') as f:
             np.save(f, C)
     else:
