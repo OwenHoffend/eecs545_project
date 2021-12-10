@@ -7,17 +7,21 @@ def plot_WMD_dists():
     train_split = 0.8
     num_train = int(train_split * 1000)
 
-    RWMD = np.load("RWMD_wmat_old.npy")[:, 5] #First test example
-    WCD = np.load("WCD_wmat_old.npy")[num_train+5, :num_train]
-    rwmd_argsort = np.argsort(RWMD)
+    ind = 5
+    WMD = np.load("WMD_wmat.npy")[:, ind]
+    RWMD = np.load("RWMD_wmat.npy")[:, ind]
+    WCD = np.load("WCD_wmat.npy")[:, ind]
+    wmd_argsort = np.argsort(WMD)
 
+    print(WMD.shape)
     print(WCD.shape)
     print(RWMD.shape)
 
     plt.title("Distance vs Training Index")
     s = np.repeat(5, num_train)
-    plt.scatter(range(num_train), WCD[rwmd_argsort], s, label='WCD')
-    plt.scatter(range(num_train), RWMD[rwmd_argsort], s, label='RWMD')
+    plt.scatter(range(num_train), WMD[wmd_argsort], s, label="WMD")
+    plt.scatter(range(num_train), RWMD[wmd_argsort], s, label='RWMD')
+    plt.scatter(range(num_train), WCD[wmd_argsort], s, label='WCD')
     plt.xlabel("Training Index")
     plt.ylabel("Distance")
     plt.legend()

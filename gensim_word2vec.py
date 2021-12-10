@@ -5,16 +5,16 @@ import numpy as np
 import dataset as ds
 
 VECTOR_SIZE = 50
+USE_NEWSFEED_20 = False #<-- Train w2v on a larger corpus? (Experimental)
 
 def train_word2vec(doc_words, model_name='word2vec'):
-    #Old W2V
-    model = Word2Vec(doc_words, min_count=1, vector_size=VECTOR_SIZE, workers=3, window=3, sg= 1)
-    #New W2V
-    #extra_words = api.load("20-newsgroups")
-    #model = Word2Vec(extra_words, min_count=1, vector_size=VECTOR_SIZE, workers=3, window=3, sg=1)
-    #model.build_vocab(doc_words, update=True)
-
-    #model.train(doc_words, total_examples=len(doc_words), epochs=1)
+    if USE_NEWSFEED_20:
+        extra_words = api.load("20-newsgroups")
+        model = Word2Vec(extra_words, min_count=1, vector_size=VECTOR_SIZE, workers=3, window=3, sg=1)
+        model.build_vocab(doc_words, update=True)
+        model.train(doc_words, total_examples=len(doc_words), epochs=1)
+    else:
+        model = Word2Vec(doc_words, min_count=1, vector_size=VECTOR_SIZE, workers=3, window=3, sg= 1)
     model.save(model_name + '.model')
     return model
 
@@ -31,7 +31,9 @@ def get_C_mat(model, word_library, save_file='cmat.npy'):
         for i, w1 in enumerate(word_library):
             print("i:", i)
             for j, w2 in enumerate(word_library):
-                C[i, j] = np.linalg.norm(model.wv[w1] - model.wv[w2])
+                v1 = model.wv.get_vector(w1, norm=True)
+                v2 = model.wv.get_vector(w2, norm=True)
+                C[i, j] = np.linalg.norm(v1 - v2)
         with open(save_file, 'wb') as f:
             np.save(f, C)
     else:
@@ -48,7 +50,7 @@ def get_X_mat(model, word_library, save_file='xmat.npy'):
         print("Generating X mat. Saving to: ", save_file)
         X = np.zeros((n, d))
         for i in range(n):
-            X[i] = model.wv[word_library[i]]
+            X[i] = model.wv.get_vector(word_library[i], norm=True)
         with open(save_file, 'wb') as f:
             np.save(f, X)
     else:

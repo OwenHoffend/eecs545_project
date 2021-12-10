@@ -27,11 +27,11 @@ def worker_initializer():
     global WL_SZ
     global LARGER_THAN_ALL_C
 
-    OSHA_MODEL = w2v.load_word2vec('osha_new_and_old')
+    OSHA_MODEL = w2v.load_word2vec('osha_new_and_old') #<-- New and old contains data from osha.csv and osha_new.csv (that's it)
     WORDS_MAIN = ds.load_words(ds.MAIN_DATA)
     WORD_LIBRARY = ds.get_library(WORDS_MAIN)
-    C = w2v.get_C_mat(OSHA_MODEL, WORD_LIBRARY, save_file="cmat_old.npy")
-    X = w2v.get_X_mat(OSHA_MODEL, WORD_LIBRARY, save_file="xmat_old.npy")
+    C = w2v.get_C_mat(OSHA_MODEL, WORD_LIBRARY, save_file="cmat.npy")
+    X = w2v.get_X_mat(OSHA_MODEL, WORD_LIBRARY, save_file="xmat.npy")
     WL_SZ = len(WORD_LIBRARY)
     if USE_GPU:
         C = torch.from_numpy(C).float().to(device)
@@ -146,13 +146,13 @@ def main():
     num_train = int(train_split * 1000)
 
     #RUN WCD MAT
-    #print(WMD_matrix(WORDS_MAIN[:num_train], WORDS_MAIN[num_train:], wmd_func=WCD, save_file="WCD_wmat.npy"))
+    print(WMD_matrix(WORDS_MAIN[:num_train], WORDS_MAIN[num_train:], wmd_func=WCD, save_file="WCD_wmat.npy"))
 
     #RUN RELAXED WMD
-    print(WMD_matrix(WORDS_MAIN[:num_train], WORDS_MAIN[num_train:], wmd_func=relaxed_WMD, save_file="RWMD_wmat_old.npy"))
+    print(WMD_matrix(WORDS_MAIN[:num_train], WORDS_MAIN[num_train:], wmd_func=relaxed_WMD, save_file="RWMD_wmat.npy"))
 
     #RUN GENSIM WMD
-    #gensim_WMD_matrix(WORDS_MAIN[:num_train], WORDS_MAIN[num_train:])
+    print(gensim_WMD_matrix(WORDS_MAIN[:num_train], WORDS_MAIN[num_train:], save_file="WMD_wmat.npy"))
 
 if __name__ == "__main__":
     main()
