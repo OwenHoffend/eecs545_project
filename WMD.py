@@ -27,11 +27,11 @@ def worker_initializer():
     global WL_SZ
     global LARGER_THAN_ALL_C
 
-    OSHA_MODEL = w2v.load_word2vec('osha_new_and_old') #<-- New and old contains data from osha.csv and osha_new.csv (that's it)
+    OSHA_MODEL = w2v.load_word2vec('osha_wiki') #<-- New and old contains data from osha.csv and osha_new.csv (that's it)
     WORDS_MAIN = ds.load_words(ds.MAIN_DATA)
     WORD_LIBRARY = ds.get_library(WORDS_MAIN)
-    C = w2v.get_C_mat(OSHA_MODEL, WORD_LIBRARY, save_file="cmat.npy")
-    X = w2v.get_X_mat(OSHA_MODEL, WORD_LIBRARY, save_file="xmat.npy")
+    C = w2v.get_C_mat(OSHA_MODEL, WORD_LIBRARY, save_file="cmat_wiki.npy")
+    X = w2v.get_X_mat(OSHA_MODEL, WORD_LIBRARY, save_file="xmat_wiki.npy")
     WL_SZ = len(WORD_LIBRARY)
     if USE_GPU:
         C = torch.from_numpy(C).float().to(device)
@@ -56,6 +56,12 @@ def WCD(nBOW1, nBOW2):
         return torch.norm(X @ nBOW1 - X @ nBOW2).cpu().detach().numpy()
     else:
         return np.linalg.norm(X @ nBOW1 - X @ nBOW2)
+
+def sparse_dense_mul(sparse, dense):
+    i = sparse._indices()
+    v = sparse._values()
+    dv = dense[i[0,:], i[1,:]]
+    return torch.sparse_coo_tensor(i, v * dv, sparse.size(), dtype=torch.float32, device=device)
 
 def relaxed_WMD(nBOW1, nBOW2):
     if USE_GPU:
@@ -82,7 +88,9 @@ def relaxed_WMD(nBOW1, nBOW2):
         T1_cuda = torch.sparse_coo_tensor(t1_inds, nBOW1[d1_inds], (WL_SZ, WL_SZ), dtype=torch.float32, device=device)
         T2_cuda = torch.sparse_coo_tensor(t2_inds, nBOW2[d2_inds], (WL_SZ, WL_SZ), dtype=torch.float32, device=device)
 
-        return torch.sum(torch.maximum(T1_cuda.to_dense(), T2_cuda.to_dense()) * C)
+        pWMD1 = torch.sparse.sum(sparse_dense_mul(T1_cuda, C))
+        pWMD2 = torch.sparse.sum(sparse_dense_mul(T2_cuda, C))
+        return torch.max(pWMD1, pWMD2).cpu().detach().numpy()
     else:
         d1_inds = np.where(nBOW1 > 0)[0]
         d2_inds = np.where(nBOW2 > 0)[0]
@@ -102,7 +110,7 @@ def relaxed_WMD(nBOW1, nBOW2):
         for j in d2_inds:
             i = np.argmin(C_inf[:, j])
             T2[i, j] = nBOW2[j]
-        return np.sum(np.maximum(T1, T2) * C)
+        return np.maximum(np.sum(T1 * C), np.sum(T2 * C))
 
 def WMD_matrix(train_docs, test_docs, wmd_func=WCD, save_file="wmat.npy"):
     ntrain = len(train_docs)
@@ -146,13 +154,13 @@ def main():
     num_train = int(train_split * 1000)
 
     #RUN WCD MAT
-    print(WMD_matrix(WORDS_MAIN[:num_train], WORDS_MAIN[num_train:], wmd_func=WCD, save_file="WCD_wmat.npy"))
+    #print(WMD_matrix(WORDS_MAIN[:num_train], WORDS_MAIN[num_train:], wmd_func=WCD, save_file="WCD_wmat_wiki.npy"))
 
     #RUN RELAXED WMD
-    print(WMD_matrix(WORDS_MAIN[:num_train], WORDS_MAIN[num_train:], wmd_func=relaxed_WMD, save_file="RWMD_wmat.npy"))
+    #print(WMD_matrix(WORDS_MAIN[:num_train], WORDS_MAIN[num_train:], wmd_func=relaxed_WMD, save_file="RWMD_wmat_wiki.npy"))
 
     #RUN GENSIM WMD
-    print(gensim_WMD_matrix(WORDS_MAIN[:num_train], WORDS_MAIN[num_train:], save_file="WMD_wmat.npy"))
+    print(gensim_WMD_matrix(WORDS_MAIN[:num_train], WORDS_MAIN[num_train:], save_file="WMD_wmat_wiki.npy"))
 
 if __name__ == "__main__":
     main()

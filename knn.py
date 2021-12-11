@@ -21,6 +21,12 @@ def knn(W_mat, num_test, labels_train, k=5):
 
     return predictions
 
+def random_guess(num_test, num_classes):
+    return np.random.randint(0, size=num_test, high=num_classes)
+
+def random_guess_weighted(num_test, num_classes, weights):
+    return np.random.choice(np.array(range(num_classes)), size=num_test, p=weights)
+
 def confusion_matrix(predictions, labels_test, num_classes):
     Q = np.zeros((num_classes, num_classes))
     for i, pred in enumerate(predictions):
@@ -48,7 +54,7 @@ def class_precisions(predictions, labels_test, num_classes):
                     tp += 1
                 else:
                     fp += 1
-        precisions[label] = tp / (tp + fp)
+        precisions[label] = tp / (tp + fp + 1e-6)
     return precisions
 
 def class_recalls(predictions, labels_test, num_classes):
@@ -62,7 +68,7 @@ def class_recalls(predictions, labels_test, num_classes):
                     tp += 1
                 else:
                     fn += 1
-        recalls[label] = tp / (tp + fn)
+        recalls[label] = tp / (tp + fn + 1e-6)
     return recalls
 
 def class_f1s(precisions, recalls):
@@ -71,20 +77,15 @@ def class_f1s(precisions, recalls):
 def weighted(metric, weights):
     return np.sum(metric * weights) / np.sum(weights)
 
-def main():
-    file = "WCD_wmat.npy"
+def print_metrics(file, Q, metrics):
+    print("File: {} Confusion Matrix: \n {}".format(file, Q))
+    print("File: {} Accuracy: {}".format(file, metrics[0]))
+    print("File: {} Weighted Precision: {}".format(file, metrics[1]))
+    print("File: {} Weighted Recall: {}".format(file, metrics[2]))
+    print("File: {} Weighted F1: {}".format(file, metrics[3]))
 
-    with open(file, 'rb') as f:
-        W = np.load(f)
-
-    num_train, num_test = W.shape
-
-    labels, id_to_label = ds.load_labels()
-    labels_train = np.array(labels[:num_train])
+def get_all_metrics(file, labels, predictions, num_classes, num_train):
     labels_test = np.array(labels[num_train:])
-    
-    num_classes = len(id_to_label.keys())
-    predictions = knn(W, num_test, labels_train)
 
     Q = confusion_matrix(predictions, labels_test, num_classes)
     accuracy = calc_accuracy(predictions, labels_test)
@@ -92,15 +93,50 @@ def main():
     recalls = class_recalls(predictions, labels_test, num_classes)
     f1_scores = class_f1s(precisions, recalls)
 
-    weights = np.sum(Q, axis=0)
+    _, weights = np.unique(labels, return_counts=True)
+    metrics = np.array([ #Pack metrics for easy averaging (for random guess)
+        weighted(accuracy, weights),
+        weighted(precisions, weights),
+        weighted(recalls, weights),
+        weighted(f1_scores, weights)
+    ])
     #Print confusion matrix and weighted metrics
-    print("File: {} Confusion Matrix: \n {}".format(file, Q))
-    print("File: {} Accuracy: {}".format(file, weighted(accuracy, weights)))
-    print("File: {} Weighted Precision: {}".format(file, weighted(precisions, weights)))
-    print("File: {} Weighted Recall: {}".format(file, weighted(recalls, weights)))
-    print("File: {} Weighted F1: {}".format(file, weighted(f1_scores, weights)))
+    
+    #prediction_strings = [id_to_label[pred] for pred in predictions]
+    return Q, metrics
 
-    prediction_strings = [id_to_label[pred] for pred in predictions]
+def main():
+    file = "WCD_wmat_wiki.npy"
+    with open(file, 'rb') as f:
+        W = np.load(f)
+
+    num_train, num_test = W.shape
+
+    labels, id_to_label = ds.load_labels()
+    labels_train = np.array(labels[:num_train])
+    
+    num_classes = len(id_to_label.keys())
+
+    #kNN
+    #predictions = knn(W, num_test, labels_train)
+    #Q, metrics = get_all_metrics(file, labels, predictions, num_classes, num_train)
+    #print_metrics(file, Q, metrics)
+
+    #Random guess sampling
+    NUM_SAMPLES = 100
+    avg_metrics = np.zeros(4)
+    __, weights = np.unique(labels, return_counts=True)
+    for _ in range(NUM_SAMPLES):
+        #Random guess - uniform
+        predictions = random_guess(num_test, num_classes)
+
+        #Random guess - weighted
+        #predictions = random_guess_weighted(num_test, num_classes, weights / np.sum(weights))
+        
+        Q, metrics = get_all_metrics(file, labels, predictions, num_classes, num_train)
+        avg_metrics += metrics
+    avg_metrics /= NUM_SAMPLES
+    print_metrics(file, Q, avg_metrics)
 
 if __name__ == "__main__":
     main()

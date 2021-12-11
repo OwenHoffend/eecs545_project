@@ -7,10 +7,10 @@ def plot_WMD_dists():
     train_split = 0.8
     num_train = int(train_split * 1000)
 
-    ind = 5
-    WMD = np.load("WMD_wmat.npy")[:, ind]
-    RWMD = np.load("RWMD_wmat.npy")[:, ind]
-    WCD = np.load("WCD_wmat.npy")[:, ind]
+    ind = 0
+    WMD = np.load("WMD_wmat_wiki.npy")[:, ind]
+    RWMD = np.load("RWMD_wmat_wiki.npy")[:, ind]
+    WCD = np.load("WCD_wmat_wiki.npy")[:, ind]
     wmd_argsort = np.argsort(WMD)
 
     print(WMD.shape)

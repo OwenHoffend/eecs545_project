@@ -5,11 +5,11 @@ import numpy as np
 import dataset as ds
 
 VECTOR_SIZE = 50
-USE_NEWSFEED_20 = False #<-- Train w2v on a larger corpus? (Experimental)
+USE_WIKI_WORDS = True #<-- Train w2v on a larger corpus? (Experimental)
 
 def train_word2vec(doc_words, model_name='word2vec'):
-    if USE_NEWSFEED_20:
-        extra_words = api.load("20-newsgroups")
+    if USE_WIKI_WORDS:
+        extra_words = api.load("wiki-english-20171001")
         model = Word2Vec(extra_words, min_count=1, vector_size=VECTOR_SIZE, workers=3, window=3, sg=1)
         model.build_vocab(doc_words, update=True)
         model.train(doc_words, total_examples=len(doc_words), epochs=1)
@@ -63,20 +63,14 @@ def get_X_mat(model, word_library, save_file='xmat.npy'):
 def main():
     words_w2v = ds.load_words(ds.W2V_DATA)
     words_main = ds.load_words(ds.MAIN_DATA)
-    library_w2v = ds.get_library(words_w2v)
-    library_main = ds.get_library(words_main)
-    print(len(library_w2v))
-    print(len(library_main))
-    osha_model = train_word2vec(words_w2v + words_main, 'osha_new_and_old')
+    if USE_WIKI_WORDS:
+        osha_model = train_word2vec(words_w2v + words_main, 'osha_wiki')
+    else:
+        osha_model = train_word2vec(words_w2v + words_main, 'osha_new_and_old')
     #osha_model = load_word2vec('osha')
 
     #Test the word vector model
     print(osha_model.wv.most_similar('fire')) #Returns things like "flames", "explosion", "extinguisher", etc
-
-    #Test word similarity matrix, C
-    #test_lib = ["is", "it", "the"]
-    #C = get_C_mat(osha_model, test_lib)
-    #print(C)
 
 if __name__ == "__main__":
     main()
